@@ -1,4 +1,4 @@
-##DCGAN-Dog-Generator
+# DCGAN-Dog-Generator
 This project uses the DCGAN method to generate pictures of dogs. 
 
 ### DCGAN
