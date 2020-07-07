@@ -15,7 +15,7 @@ class InputPipe():
 
         return
 
-    def readImage(self, path):
+    def readImage(self, path) -> np.ndarray:
         # Attempt to load file
         try:
             img = Image.open(path)
@@ -26,7 +26,7 @@ class InputPipe():
         # Return image as a numpy array
         return np.array(img)
 
-    def getImgCount(self):
+    def getImgCount(self) -> int:
         counter = 0
         # Go through each breed folder
         for breedFolder in listdir(self.mAnnPath):
@@ -95,14 +95,18 @@ class InputPipe():
 
                     # Store image
                     self.mImages[index] = imgCropped
+
                     # Increase index
                     index += 1
 
                     # plt.imshow(imgCropped)
                     # plt.show()
 
+        # Change type from float64 to float32 to save memory
+        self.mImages = tf.cast(self.mImages, dtype=tf.float32)
 
-
+        # Create dataset
+        self.mImages = tf.data.Dataset.from_tensor_slices(self.mImages).shuffle(count)
 
         return
 
