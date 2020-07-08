@@ -1,7 +1,8 @@
-
+import tensorflow as tf
 
 class Discriminator:
-    def __init__(self, dataset, batchSize=32):
+    def __init__(self, dataset: tf.data.Dataset,
+                 batchSize: int = 32, imageSize: (int, int, int) = (64, 64, 3)):
         self.mDataset = dataset
         self.mBatchSize = batchSize
         return
