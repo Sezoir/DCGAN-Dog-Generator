@@ -42,9 +42,9 @@ class InputPipe():
 
     def loadAllImages(self):
         # Get count of images
-        count = self.getImgCount()
+        buffer = self.getImgCount()
         # Initialise empty numpy array
-        self.mImages = np.zeros((count, self.mImageWidth, self.mImageHeight, self.mImageChannels))
+        self.mImages = np.zeros((buffer, self.mImageWidth, self.mImageHeight, self.mImageChannels))
         # Create index
         index = 0
         # Go through each breed folder
@@ -106,16 +106,18 @@ class InputPipe():
         self.mImages = tf.cast(self.mImages, dtype=tf.float32)
 
         # Create dataset
-        self.mImages = tf.data.Dataset.from_tensor_slices(self.mImages).shuffle(count)
+        self.mImages = tf.data.Dataset.from_tensor_slices(self.mImages).shuffle(buffer).batch(self.mBatchSize)
 
         return
 
     mImageWidth = 64
     mImageHeight = 64
     mImageChannels = 3
+    mBatchSize = 64
     mAnnPath = Path("Datasets\\annotations\\Annotation")
     mImPath = Path("Datasets\\images\\Images")
     mImages = None
+
 
 
 
