@@ -40,9 +40,12 @@ class InputPipe():
                     counter += 1
         return counter
 
-    def loadAllImages(self):
+    def loadAllImages(self, sampleSize = None):
         # Get count of images
-        buffer = self.getImgCount()
+        if sampleSize == None:
+            buffer = self.getImgCount()
+        else:
+            buffer = sampleSize
         # Initialise empty numpy array
         self.mImages = np.zeros((buffer, self.mImageWidth, self.mImageHeight, self.mImageChannels))
         # Create index
@@ -90,7 +93,7 @@ class InputPipe():
                         interpolation = tf.image.ResizeMethod.BICUBIC   # Stretch
 
                     # Resize image with pad to reserve aspect ratio
-                    imgCropped = tf.image.resize_with_pad(imgCropped, self.mImageHeight, self.mImageWidth,
+                    imgCropped = tf.image.resize_with_pad(imgCropped, self.mImageWidth, self.mImageHeight,
                                                           method=interpolation, antialias=True)
 
                     # Store image
@@ -99,21 +102,20 @@ class InputPipe():
                     # Increase index
                     index += 1
 
-                    # plt.imshow(imgCropped)
-                    # plt.show()
-
-        # Change type from float64 to float32 to save memory
-        self.mImages = tf.cast(self.mImages, dtype=tf.float32)
-
-        # Create dataset
-        self.mImages = tf.data.Dataset.from_tensor_slices(self.mImages).shuffle(buffer).batch(self.mBatchSize)
-
+                    if index == buffer-1:
+                        # Change type from float64 to float32 to save memory
+                        self.mImages = tf.cast(self.mImages, dtype=tf.float32)
+                        # Create dataset
+                        self.mImages = tf.data.Dataset.from_tensor_slices(self.mImages).shuffle(buffer).batch(
+                            self.mBatchSize, drop_remainder=True)
+                        return
         return
+
 
     mImageWidth = 64
     mImageHeight = 64
     mImageChannels = 3
-    mBatchSize = 64
+    mBatchSize = 32
     mAnnPath = Path("Datasets\\annotations\\Annotation")
     mImPath = Path("Datasets\\images\\Images")
     mImages = None
@@ -124,10 +126,11 @@ class InputPipe():
 if __name__ == "__main__":
     io = InputPipe()
     # imga = io.readImage("Datasets\\images\\Images\\n02085620-Chihuahua\\n02085620_199.jpg")
-    io.loadAllImages()
-    imga = io.mImages[0]
-    plt.imshow(imga, interpolation='nearest')
-    plt.show()
-    imga = io.mImages[1]
-    plt.imshow(imga, interpolation='nearest')
-    plt.show()
+    io.loadAllImages(sampleSize=100)
+
+    for batch in io.mImages.take(1).as_numpy_iterator():
+        for pic in batch:
+            print(pic[32][32])
+            plt.imshow(pic, interpolation='nearest')
+            plt.show()
+
