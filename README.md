@@ -12,4 +12,10 @@ More can be learned from: https://www.tensorflow.org/tutorials/generative/dcgan
 
 ### Credits
 The dataset for this project was found at: 
-https://www.kaggle.com/jessicali9530/stanford-dogs-dataset/data
+https://www.kaggle.com/jessicali9530/stanford-dogs-dataset/data 
+
+Credits to JadeBlue96 who has also done a DCGAN dog generator report found at:
+https://github.com/JadeBlue96/DCGAN-Dog-Generator
+
+Also the model was architecture and constants used from this paper:
+https://arxiv.org/pdf/1511.06434.pdf
