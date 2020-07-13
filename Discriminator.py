@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.keras as ks
 import tensorflow.keras.layers as lr
@@ -48,6 +49,33 @@ class Discriminator:
         model.add(lr.LeakyReLU(alpha=slope))
         return model
 
+    def loss(self, realOutput: tf.Tensor, fakeOutput: tf.Tensor, lossFunc: str = "gan", labelSmoothing: bool = True):
+        # Create labels for real and fake images
+        realLabels = tf.ones_like(realOutput)
+        fakeLabels = tf.zeros_like(fakeOutput)
+        # Apply smoothing to the labels to help stop the discriminator becoming to overconfident/underconfident about
+        # its predictions. So we use the ranges [0~0.3], [0.7~1]
+        if labelSmoothing:
+            realLabels = realLabels - 0.3 + (np.random.random(realLabels.shape)*0.5)
+            fakeLabels = fakeLabels + np.random.random(fakeLabels.shape)*0.3
+
+        # This returns a helper function to compute the cross entropy loss
+        crossEntropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+
+        # Now apply the correct loss functions
+        if lossFunc == "gan":
+            realLoss = crossEntropy(realLabels, realOutput)
+            fakeLoss = crossEntropy(fakeLabels, fakeOutput)
+        else:
+            raise ValueError("Loss function in the Discriminator class cannot be found.")
+
+        return realLoss + fakeLoss
+
+    def compile(self, learning = 0.0002, b1=0.5):
+        opt = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
+        self.mModel.compile(optimizer=opt, loss=self.loss)
+        return
+
     def fit(self):
 
         return
@@ -81,6 +109,8 @@ if __name__ == "__main__":
                          imShape=(64, 64, 3),
                          load=False,
                          initWeights=ks.initializers.TruncatedNormal(stddev=0.02, mean=0))
-    mod = disc.createModel()
+    disc.load()
+    mod = disc.mModel
     mod.summary()
+    disc.compile()
     print(mod.output_shape)

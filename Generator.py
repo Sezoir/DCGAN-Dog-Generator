@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.keras as ks
 import tensorflow.keras.layers as lr
@@ -49,6 +50,27 @@ class Generator:
         model.add(lr.LeakyReLU(alpha=slope))
         return model
 
+    def loss(self, realOutput: tf.Tensor, fakeOutput: tf.Tensor, lossFunc: str = "gan", labelSmoothing: bool = True):
+        # Create labels
+        fakeLabels = tf.ones_like(fakeOutput)
+        # Apply smoothing to the labels
+        if labelSmoothing:
+            fakeLabels = fakeLabels + np.random.random(fakeLabels.shape) * 0.3
+
+        # This returns a helper function to compute the cross entropy loss
+        crossEntropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
+
+        # Now apply the correct loss functions
+        if lossFunc == "gan":
+            return crossEntropy(tf.ones_like(fakeLabels), fakeOutput)
+        else:
+            raise ValueError("Loss function in the Generator class cannot be found.")
+
+    def compile(self, learning = 0.0002, b1=0.5):
+        opt = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
+        self.mModel.compile(optimizer=opt, loss=self.loss)
+        return
+
     def fit(self):
 
         return
@@ -83,6 +105,7 @@ if __name__ == "__main__":
     mod = gen.mModel
     print(mod.summary())
     print(mod.output_shape)
+    gen.compile()
     # import matplotlib.pyplot as plt
     # noise = tf.random.normal([1,100])
     # generatedImage = mod(noise, training=False)
