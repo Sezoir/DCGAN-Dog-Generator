@@ -40,7 +40,7 @@ class Discriminator:
         return model
 
     def convReLU(self, model: ks.Sequential, output: int, shape: (int, int),
-                 stride: int, padding="same", useBias: bool = False,
+                 stride: int, padding: str = "same", useBias: bool = False,
                  slope: float = 0.2) -> ks.Sequential:
         model.add(lr.Conv2D(output, shape, strides=(stride, stride), padding=padding, use_bias=useBias,
                             kernel_initializer=self.mInitWeights))
