@@ -119,6 +119,7 @@ class InputPipe():
     mAnnPath = Path("Datasets\\annotations\\Annotation")
     mImPath = Path("Datasets\\images\\Images")
     mImages = None
+    mShape = (mImageHeight, mImageWidth, mImageChannels)
 
 
 
