@@ -73,9 +73,9 @@ class DCGAN:
         # Generate image with seed
         prediction = self.mGenerator.mModel(seed, training=False)
         # Unstandardisation the image
-        prediction = (prediction+1)*127.5
+        prediction = (prediction.numpy()[0]+1)*127.5
         # Show image
-        plt.imshow(prediction.numpy()[0])
+        plt.imshow(prediction)
         plt.show()
         return
 
