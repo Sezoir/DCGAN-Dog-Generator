@@ -6,11 +6,10 @@ import tensorflow.keras as ks
 import tensorflow.keras.layers as lr
 
 class Discriminator:
-    def __init__(self, dataset: tf.data.Dataset,
+    def __init__(self,
                  batchSize: int = 32,
                  imShape: (int, int, int) = (64, 64, 3),
                  initWeights: ks.initializers.Initializer = ks.initializers.RandomUniform(-1, 1)):
-        self.mDataset = dataset
         self.mBatchSize = batchSize
         self.mImHeight = imShape[0]
         self.mImWidth = imShape[1]
@@ -27,6 +26,7 @@ class Discriminator:
                                              discriminator=self.mModel)
             checkpoint.restore(tf.train.latest_checkpoint(dire / self.mSaveDir))
         else:
+            # @todo: implement method for loading model at specific epochs
             ...
         return
 
@@ -39,7 +39,8 @@ class Discriminator:
     def createModel(self):
         model = ks.Sequential()
         model.add(lr.Conv2D(64, (5, 5), strides=2, padding='same',
-                            input_shape=[self.mImHeight, self.mImWidth, 3], kernel_initializer=self.mInitWeights))
+                            input_shape=[self.mImHeight, self.mImWidth, self.mImChannels],
+                            kernel_initializer=self.mInitWeights))
         model.add(lr.BatchNormalization())
         model.add(lr.LeakyReLU())
         model = self.convReLU(model, output=64, shape=(4, 4), stride=2)
@@ -57,6 +58,10 @@ class Discriminator:
         model.add(lr.BatchNormalization())
         model.add(lr.LeakyReLU(alpha=slope))
         return model
+
+    def setOptimizer(self, learning = 0.0002, b1=0.5):
+        self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
+        return
 
     def loss(self, realOutput: tf.Tensor, fakeOutput: tf.Tensor, lossFunc: str = "gan", labelSmoothing: bool = True):
         # Create labels for real and fake images
@@ -80,10 +85,6 @@ class Discriminator:
 
         return realLoss + fakeLoss
 
-    def setOptimizer(self, learning = 0.0002, b1=0.5):
-        self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
-        return
-
     def fit(self):
 
         return
@@ -96,14 +97,13 @@ class Discriminator:
 
         return
 
-    mDataset = None
     mBatchSize = None
     mLoad = False
     mImHeight = None
     mImWidth = None
     mImChannels = None
     mInitWeights = None
-    mModel = None
+    mModel: ks.Model = None
     mOptimizer = None
     mSaveDir = Path("Discriminator/ckpt")
 
@@ -111,10 +111,9 @@ if __name__ == "__main__":
     # from InputPipe import InputPipe
     # io = InputPipe()
     # io.loadAllImages()
-    disc = Discriminator(tf.data.Dataset.from_tensor_slices([1,2,3]),
-                         imShape=(64, 64, 3),
+    disc = Discriminator(imShape=(64, 64, 3),
                          initWeights=ks.initializers.TruncatedNormal(stddev=0.02, mean=0))
-    disc.load()
+    disc.load(checkpoint="initial")
     mod = disc.mModel
     mod.summary()
     print(mod.output_shape)

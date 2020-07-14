@@ -27,6 +27,7 @@ class Generator:
                                              generator=self.mModel)
             checkpoint.restore(tf.train.latest_checkpoint(dire / self.mSaveDir))
         else:
+            # @todo: implement method for loading model at specific epochs
             ...
         return
 
@@ -59,6 +60,10 @@ class Generator:
         model.add(lr.LeakyReLU(alpha=slope))
         return model
 
+    def setOptimizer(self, learning=0.0002, b1=0.5):
+        self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
+        return
+
     def loss(self, realOutput: tf.Tensor, fakeOutput: tf.Tensor, lossFunc: str = "gan", labelSmoothing: bool = True):
         # Create labels
         fakeLabels = tf.ones_like(fakeOutput)
@@ -74,10 +79,6 @@ class Generator:
             return crossEntropy(tf.ones_like(fakeLabels), fakeOutput)
         else:
             raise ValueError("Loss function in the Generator class cannot be found.")
-
-    def setOptimizer(self, learning=0.0002, b1=0.5):
-        self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
-        return
 
     def fit(self):
 
@@ -98,7 +99,7 @@ class Generator:
     mImChannels = None
     mScale = None
     mInitWeights = None
-    mModel = None
+    mModel: ks.Model = None
     mOptimizer = None
     mSaveDir = Path("Generator/ckpt")
 
