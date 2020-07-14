@@ -11,8 +11,12 @@ import matplotlib.pyplot as plt
 
 class InputPipe():
 
-    def __init__(self):
-
+    def __init__(self, batchSize=32, imageWidth=64, imageHeight=64, imageChannels=3):
+        self.mBatchSize = batchSize
+        self.mImageWidth = imageWidth
+        self.mImageHeight = imageHeight
+        self.mImageChannels = imageChannels
+        self.mShape = (imageHeight, imageWidth, imageChannels)
         return
 
     def readImage(self, path) -> np.ndarray:
@@ -112,14 +116,14 @@ class InputPipe():
         return
 
 
-    mImageWidth = 64
-    mImageHeight = 64
-    mImageChannels = 3
-    mBatchSize = 32
+    mImageWidth = None
+    mImageHeight = None
+    mImageChannels = None
+    mBatchSize = None
     mAnnPath = Path("Datasets\\annotations\\Annotation")
     mImPath = Path("Datasets\\images\\Images")
     mImages = None
-    mShape = (mImageHeight, mImageWidth, mImageChannels)
+    mShape = None
 
 
 
