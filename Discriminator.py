@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as ks
@@ -7,24 +9,31 @@ class Discriminator:
     def __init__(self, dataset: tf.data.Dataset,
                  batchSize: int = 32,
                  imShape: (int, int, int) = (64, 64, 3),
-                 load: bool = False,
                  initWeights: ks.initializers.Initializer = ks.initializers.RandomUniform(-1, 1)):
         self.mDataset = dataset
         self.mBatchSize = batchSize
         self.mImHeight = imShape[0]
         self.mImWidth = imShape[1]
         self.mImChannels = imShape[2]
-        self.mLoad = load
         self.mInitWeights = initWeights
         return
 
-    def load(self):
-        # Check whether we are loading previous model, if so load and return
-        if self.mLoad == True:
+    def load(self, checkpoint, dire=""):
+        if checkpoint == "initial":
+            self.mModel = self.createModel()
+            self.setOptimizer()
+        elif checkpoint == "latest":
+            checkpoint = tf.train.Checkpoint(discriminatorOptimizer=self.mOptimizer,
+                                             discriminator=self.mModel)
+            checkpoint.restore(tf.train.latest_checkpoint(dire / self.mSaveDir))
+        else:
+            ...
+        return
 
-            return
-        # Else we create a new initial model
-        self.mModel = self.createModel()
+    def save(self, dire: Path):
+        checkpoint = tf.train.Checkpoint(discriminatorOptimizer=self.mOptimizer,
+                                         discriminator=self.mModel)
+        checkpoint.save(dire / self.mSaveDir)
         return
 
     def createModel(self):
@@ -71,9 +80,8 @@ class Discriminator:
 
         return realLoss + fakeLoss
 
-    def compile(self, learning = 0.0002, b1=0.5):
-        opt = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
-        self.mModel.compile(optimizer=opt, loss=self.loss)
+    def setOptimizer(self, learning = 0.0002, b1=0.5):
+        self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
         return
 
     def fit(self):
@@ -81,10 +89,6 @@ class Discriminator:
         return
 
     def evaluate(self):
-
-        return
-
-    def save(self):
 
         return
 
@@ -100,6 +104,8 @@ class Discriminator:
     mImChannels = None
     mInitWeights = None
     mModel = None
+    mOptimizer = None
+    mSaveDir = Path("Discriminator/ckpt")
 
 if __name__ == "__main__":
     # from InputPipe import InputPipe
@@ -107,10 +113,8 @@ if __name__ == "__main__":
     # io.loadAllImages()
     disc = Discriminator(tf.data.Dataset.from_tensor_slices([1,2,3]),
                          imShape=(64, 64, 3),
-                         load=False,
                          initWeights=ks.initializers.TruncatedNormal(stddev=0.02, mean=0))
     disc.load()
     mod = disc.mModel
     mod.summary()
-    disc.compile()
     print(mod.output_shape)

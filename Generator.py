@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as ks
@@ -7,24 +9,31 @@ class Generator:
     def __init__(self, batchSize: int = 32,
                  imShape: (int, int, int) = (64, 64, 3),
                  scale: float = 0.5,
-                 load: bool = False,
                  initWeights: ks.initializers.Initializer = ks.initializers.RandomUniform(-1, 1)):
         self.mBatchSize = batchSize
         self.mImHeight = imShape[0]
         self.mImWidth = imShape[1]
         self.mImChannels = imShape[2]
         self.mScale = int(4 ** 1/scale)
-        self.mLoad = load
         self.mInitWeights = initWeights
         return
 
-    def load(self):
-        # Check whether we are loading previous model, if so load and return
-        if self.mLoad == True:
+    def load(self, checkpoint, dire=""):
+        if checkpoint == "initial":
+            self.mModel = self.createModel()
+            self.setOptimizer()
+        elif checkpoint == "latest":
+            checkpoint = tf.train.Checkpoint(generatorOptimizer=self.mOptimizer,
+                                             generator=self.mModel)
+            checkpoint.restore(tf.train.latest_checkpoint(dire / self.mSaveDir))
+        else:
+            ...
+        return
 
-            return
-        # Else we create a new initial model
-        self.mModel = self.createModel()
+    def save(self, dire: Path):
+        checkpoint = tf.train.Checkpoint(generatorOptimizer=self.mOptimizer,
+                                         generator=self.mModel)
+        checkpoint.save(dire / self.mSaveDir)
         return
 
     def createModel(self):
@@ -66,9 +75,8 @@ class Generator:
         else:
             raise ValueError("Loss function in the Generator class cannot be found.")
 
-    def compile(self, learning = 0.0002, b1=0.5):
-        opt = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
-        self.mModel.compile(optimizer=opt, loss=self.loss)
+    def setOptimizer(self, learning=0.0002, b1=0.5):
+        self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
         return
 
     def fit(self):
@@ -76,10 +84,6 @@ class Generator:
         return
 
     def evaluate(self):
-
-        return
-
-    def save(self):
 
         return
 
@@ -95,17 +99,17 @@ class Generator:
     mScale = None
     mInitWeights = None
     mModel = None
+    mOptimizer = None
+    mSaveDir = Path("Generator/ckpt")
 
 if __name__ == "__main__":
     from InputPipe import InputPipe
     gen = Generator(imShape=(64, 64, 3),
-                    load=False,
                     initWeights=ks.initializers.TruncatedNormal(stddev=0.02, mean=0))
     gen.load()
     mod = gen.mModel
     print(mod.summary())
     print(mod.output_shape)
-    gen.compile()
     # import matplotlib.pyplot as plt
     # noise = tf.random.normal([1,100])
     # generatedImage = mod(noise, training=False)
