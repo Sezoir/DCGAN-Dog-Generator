@@ -22,6 +22,8 @@ class Discriminator:
             self.mModel = self.createModel()
             self.setOptimizer()
         elif checkpoint == "latest":
+            self.mModel = self.createModel()
+            self.setOptimizer()
             checkpoint = tf.train.Checkpoint(discriminatorOptimizer=self.mOptimizer,
                                              discriminator=self.mModel)
             checkpoint.restore(tf.train.latest_checkpoint(dire / self.mSaveDir))
@@ -33,7 +35,7 @@ class Discriminator:
     def save(self, dire: Path):
         checkpoint = tf.train.Checkpoint(discriminatorOptimizer=self.mOptimizer,
                                          discriminator=self.mModel)
-        checkpoint.save(dire / self.mSaveDir)
+        checkpoint.save(dire / self.mSavePre)
         return
 
     def createModel(self):
@@ -105,7 +107,8 @@ class Discriminator:
     mInitWeights = None
     mModel: ks.Model = None
     mOptimizer = None
-    mSaveDir = Path("Discriminator/ckpt")
+    mSaveDir = Path("Discriminator")
+    mSavePre = mSaveDir / Path("ckpt")
 
 if __name__ == "__main__":
     # from InputPipe import InputPipe
