@@ -5,15 +5,16 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as ks
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from InputPipe import InputPipe
 from Discriminator import Discriminator
 from Generator import Generator
 
 class DCGAN:
-    def __init__(self):
+    def __init__(self, sampleSize=None):
         self.mInputPipe = InputPipe(batchSize=self.mBatchSize)
-        self.mInputPipe.loadAllImages()#sampleSize=100
+        self.mInputPipe.loadAllImages(sampleSize=sampleSize)
         initWeights = ks.initializers.TruncatedNormal(stddev=0.02, mean=0)
         self.mDiscriminator = Discriminator(batchSize=self.mBatchSize,
                                             imShape=self.mInputPipe.mShape, initWeights=initWeights)
@@ -50,21 +51,24 @@ class DCGAN:
 
         self.mGenerator.mOptimizer.apply_gradients(zip(gradGen, self.mGenerator.mModel.trainable_variables))
         self.mDiscriminator.mOptimizer.apply_gradients(zip(gradDisc, self.mDiscriminator.mModel.trainable_variables))
-        return
+        return (genLoss, discLoss)
 
     # Trains both models for x epochs
     def train(self, epochs: int):
         for epoch in range(epochs):
-            start = time.time()
+            # start = time.time()
 
-            for imageBatch in self.mInputPipe.mImages:
-                self.trainStep(imageBatch)
+            with tqdm(total=tf.data.experimental.cardinality(self.mInputPipe.mImages).numpy()) as pbar:
+                for imageBatch in self.mInputPipe.mImages:
+                    (genLoss, discLoss) = self.trainStep(imageBatch)
+                    pbar.set_description("Progress for epoch {%s}" % epoch)
+                    pbar.set_postfix_str("Generator loss: {:.5f}, Discriminator loss: {:.5f}".format(genLoss, discLoss))
+                    # pbar.set_description("Generator loss: %s, Discriminator loss: %s, Progress for epoch {%s}" % genLoss, discLoss, epoch)
+                    pbar.update(1)
+                pbar.close()
 
             if (epoch+1) % 15 == 0:
                 self.save()
-
-            print('Time for epoch {} is {} sec'.format(epoch + 1, time.time()-start))
-        self.genPic()
         return
 
     def genPic(self):
@@ -73,7 +77,7 @@ class DCGAN:
         # Generate image with seed
         prediction = self.mGenerator.mModel(seed, training=False)
         # Unstandardisation the image
-        prediction = (prediction.numpy()[0]+1)*127.5
+        prediction = (prediction.numpy()[0]+1)/2
         # Show image
         plt.imshow(prediction)
         plt.show()
@@ -86,14 +90,18 @@ class DCGAN:
     mDiscriminator = None
     mGenerator = None
     mSaveDir = Path("TrainingCheckpoints/")
-    mBatchSize = 32
+    mBatchSize = 64
     mNoiseDim = 100 # Size input to generator
 
 if __name__ == "__main__":
-    gan = DCGAN()
-    gan.loadModels(loadCheckpoint="initial")
+    gan = DCGAN(100)
+    gan.loadModels(loadCheckpoint="latest")
+    gan.genPic()
     # print(gan.mDiscriminator.mModel.weights)
     # gan.save()
     # gan.loadModels(loadCheckpoint="latest")
     # print(gan.mDiscriminator.mModel.weights)
-    gan.train(50)
+    gan.train(10)
+    gan.genPic()
+    gan.save()
+
