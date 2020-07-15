@@ -97,8 +97,11 @@ class InputPipe():
                         interpolation = tf.image.ResizeMethod.BICUBIC   # Stretch
 
                     # Resize image with pad to reserve aspect ratio
-                    imgCropped = tf.image.resize_with_pad(imgCropped, self.mImageWidth, self.mImageHeight,
+                    # imgCropped = tf.image.resize_with_pad(imgCropped, self.mImageWidth, self.mImageHeight,
+                    #                                       method=interpolation, antialias=True)
+                    imgCropped = tf.image.resize(imgCropped, (self.mImageWidth, self.mImageHeight),
                                                           method=interpolation, antialias=True)
+
 
                     # Store image
                     self.mImages[index] = imgCropped
