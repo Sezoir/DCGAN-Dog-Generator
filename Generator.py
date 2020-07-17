@@ -66,11 +66,15 @@ class Generator:
         self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
         return
 
+    @tf.function
     def loss(self, realOutput: tf.Tensor, fakeOutput: tf.Tensor, lossFunc: str = "gan", labelSmoothing: bool = True):
-        # Create labels
-        fakeLabels = tf.ones_like(fakeOutput)
-        # Apply smoothing to the labels
+        # Create labels for real and fake images
+        realLabels = tf.ones_like(realOutput, dtype=tf.float32)
+        fakeLabels = tf.zeros_like(fakeOutput, dtype=tf.float32)
+        # Apply smoothing to the labels to help stop the discriminator becoming to overconfident/underconfident about
+        # its predictions. So we use the ranges [0~0.3], [0.7~1]
         if labelSmoothing:
+            realLabels = realLabels - 0.3 + (np.random.random(realLabels.shape) * 0.5)
             fakeLabels = fakeLabels + np.random.random(fakeLabels.shape) * 0.3
 
         # This returns a helper function to compute the cross entropy loss
@@ -78,7 +82,11 @@ class Generator:
 
         # Now apply the correct loss functions
         if lossFunc == "gan":
-            return crossEntropy(tf.ones_like(fakeLabels), fakeOutput)
+            return crossEntropy(fakeLabels, fakeOutput)
+        elif lossFunc == "ralsgan":
+            return (tf.reduce_mean(tf.square(realOutput - tf.reduce_mean(fakeLabels) + tf.ones_like(realLabels)))
+                    + tf.reduce_mean(tf.square(fakeOutput - tf.reduce_mean(realLabels) - tf.ones_like(fakeLabels)))) / 2.
+
         else:
             raise ValueError("Loss function in the Generator class cannot be found.")
 

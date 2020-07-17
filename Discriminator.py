@@ -65,6 +65,7 @@ class Discriminator:
         self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
         return
 
+    @tf.function
     def loss(self, realOutput: tf.Tensor, fakeOutput: tf.Tensor, lossFunc: str = "gan", labelSmoothing: bool = True):
         # Create labels for real and fake images
         realLabels = tf.ones_like(realOutput)
@@ -82,10 +83,12 @@ class Discriminator:
         if lossFunc == "gan":
             realLoss = crossEntropy(realLabels, realOutput)
             fakeLoss = crossEntropy(fakeLabels, fakeOutput)
+            return realLoss + fakeLoss
+        elif lossFunc == "ralsgan":
+            return (tf.reduce_mean(tf.square(realOutput - tf.reduce_mean(fakeLabels) - tf.ones_like(realLabels)))
+                    + tf.reduce_mean(tf.square(fakeOutput - tf.reduce_mean(realLabels) + tf.ones_like(fakeLabels)))) / 2.
         else:
             raise ValueError("Loss function in the Discriminator class cannot be found.")
-
-        return realLoss + fakeLoss
 
     def fit(self):
 
