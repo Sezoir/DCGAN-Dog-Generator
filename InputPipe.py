@@ -114,14 +114,14 @@ class InputPipe():
                         # Change type from float64 to float32 to save memory
                         self.mImages = tf.cast(self.mImages, dtype=tf.float32)
                         # Create dataset
-                        self.mImages = tf.data.Dataset.from_tensor_slices(self.mImages).shuffle(buffer).batch(
+                        self.mImages = tf.data.Dataset.from_tensor_slices(self.mImages).shuffle(64).batch(
                             self.mBatchSize, drop_remainder=True)
                         return
         return
 
     # @todo: Move areas of function to its own function
     # @todo: Scale group depending on sampleSize
-    def getNextImageChunk(self, sampleSize=None, group=3):
+    def getNextImageChunk(self, sampleSize=None, group=2):
         # Get count of images
         if sampleSize == None:
             sampleSize = self.getImgCount()
@@ -132,17 +132,21 @@ class InputPipe():
         for breedFolder in listdir(self.mAnnPath):
             groupSize[breedFolder] = len(fileFolder[breedFolder]) // group
 
-        # Initialise empty numpy array
-        images = np.zeros((sampleSize, self.mImageWidth, self.mImageHeight, self.mImageChannels))
-
         # Iterate through each group
         for chunk in range(group):
-            for breedFolder in tqdm(listdir(self.mAnnPath)):
-                if chunk == group:
+            # Initialise empty numpy array
+            images = np.zeros((sampleSize//group, self.mImageWidth, self.mImageHeight, self.mImageChannels))
+
+            for breedFolder in listdir(self.mAnnPath):
+                # Get the files to operate on. If we are on the last chunk, use all the remaining files
+                if chunk == group-1:
                     files = fileFolder[breedFolder]
                 else:
+                    # Randomly choose files from folder
                     files = np.random.choice(fileFolder[breedFolder], groupSize[breedFolder], replace=False)
+                    # Remove any files we have processed
                     fileFolder[breedFolder] = [x for x in fileFolder[breedFolder] if x not in files]
+                # Iterate through each file
                 for file in files:
                     # Create path to file
                     path = Path(breedFolder, file)
@@ -192,13 +196,12 @@ class InputPipe():
                         # Store image
                         images[index] = imgCropped
 
-                        if index == sampleSize - 1:
-                            # Change type from float64 to float32 to save memory
-                            images = tf.cast(images, dtype=tf.float32)
-                            # Create dataset
-                            images = tf.data.Dataset.from_tensor_slices(images).shuffle(sampleSize).batch(
-                                self.mBatchSize, drop_remainder=True)
-                            yield images
+            # Change type from float64 to float32 to save memory
+            images = tf.cast(images, dtype=tf.float32)
+            # Create dataset
+            images = tf.data.Dataset.from_tensor_slices(images).shuffle(sampleSize//group).batch(
+                self.mBatchSize, drop_remainder=True)
+            yield images
 
 
 
