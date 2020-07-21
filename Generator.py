@@ -70,12 +70,13 @@ class Generator:
     def loss(self, realOutput: tf.Tensor, fakeOutput: tf.Tensor, lossFunc: str = "gan", labelSmoothing: bool = True):
         # Create labels for real and fake images
         realLabels = tf.ones_like(realOutput, dtype=tf.float32)
-        fakeLabels = tf.zeros_like(fakeOutput, dtype=tf.float32)
+        fakeLabels = tf.ones_like(fakeOutput, dtype=tf.float32)
         # Apply smoothing to the labels to help stop the discriminator becoming to overconfident/underconfident about
         # its predictions. So we use the ranges [0~0.3], [0.7~1]
         if labelSmoothing:
             realLabels = realLabels - 0.3 + (np.random.random(realLabels.shape) * 0.5)
-            fakeLabels = fakeLabels + np.random.random(fakeLabels.shape) * 0.3
+            fakeLabels = fakeLabels - 0.3 + (np.random.random(fakeLabels.shape) * 0.5)
+            # fakeLabels = fakeLabels + np.random.random(fakeLabels.shape) * 0.3
 
         # This returns a helper function to compute the cross entropy loss
         crossEntropy = tf.keras.losses.BinaryCrossentropy(from_logits=False)
