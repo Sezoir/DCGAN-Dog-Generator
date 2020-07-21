@@ -19,7 +19,7 @@ class DCGAN:
     def __init__(self, sampleSize=None):
         self.mInputPipe = InputPipe(batchSize=self.mBatchSize, imageWidth=self.mImageShape[0],
                                     imageHeight=self.mImageShape[1], imageChannels=self.mImageShape[2])
-        self.mInputPipe.loadAllImages(sampleSize=sampleSize)
+        # self.mInputPipe.loadAllImages(sampleSize=sampleSize)
         initWeights = ks.initializers.TruncatedNormal(stddev=0.02, mean=0)
         self.mDiscriminator = Discriminator(batchSize=self.mBatchSize,
                                             imShape=self.mImageShape, initWeights=initWeights)
@@ -64,16 +64,18 @@ class DCGAN:
         self.mDiscLoss = np.zeros(epochs)
         self.mGenLoss = np.zeros(epochs)
         # Loop through each epoch
+
         for epoch in range(epochs):
-            with tqdm(total=tf.data.experimental.cardinality(self.mInputPipe.mImages).numpy()) as pbar:
-                for imageBatch in self.mInputPipe.mImages:
-                    (genLoss, discLoss) = self.trainStep(imageBatch)
-                    pbar.set_description("Progress for epoch {%s}" % epoch)
-                    pbar.set_postfix_str("Generator loss: {:.5f}, Discriminator loss: {:.5f}".format(genLoss, discLoss))
-                    pbar.update(1)
-                    self.mDiscLoss[epoch] = discLoss
-                    self.mGenLoss[epoch] = genLoss
-                pbar.close()
+            for chunk in self.mInputPipe.getNextImageChunk():
+                with tqdm(total=tf.data.experimental.cardinality(chunk).numpy()) as pbar:
+                    for imageBatch in chunk:
+                        (genLoss, discLoss) = self.trainStep(imageBatch)
+                        pbar.set_description("Progress for epoch {%s}" % epoch)
+                        pbar.set_postfix_str("Generator loss: {:.5f}, Discriminator loss: {:.5f}".format(genLoss, discLoss))
+                        pbar.update(1)
+                        self.mDiscLoss[epoch] = discLoss
+                        self.mGenLoss[epoch] = genLoss
+                    pbar.close()
 
             if (epoch+1) % 15 == 0:
                 self.save()
@@ -112,12 +114,12 @@ class DCGAN:
     mDiscriminator = None
     mGenerator = None
     mSaveDir = Path("TrainingCheckpoints/")
-    mBatchSize = 48
+    mBatchSize = 64
     mNoiseDim = 100 # Size input to generator
     mGenLoss = None
     mDiscLoss = None
     mImageShape = (64, 64, 3)
-    mLossFunc = "ralsgan"
+    mLossFunc = "gan"
 
 if __name__ == "__main__":
     gan = DCGAN()
