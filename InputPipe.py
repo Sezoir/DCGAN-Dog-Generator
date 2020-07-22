@@ -1,9 +1,11 @@
+# Python libs
 from PIL import Image
-
-import numpy as np
-import xml.etree.ElementTree as ET
 from pathlib import Path
 from os import listdir
+from os.path import exists, abspath
+# External libs
+import numpy as np
+import xml.etree.ElementTree as ET
 import tensorflow as tf
 from tqdm import tqdm
 
@@ -18,6 +20,81 @@ class InputPipe():
         self.mImageHeight = imageHeight
         self.mImageChannels = imageChannels
         self.mShape = (imageHeight, imageWidth, imageChannels)
+        if ~exists(self.mTFPath / "data.tfrecords"):
+            self.createTFFile()
+        return
+
+    def loadDataset(self):
+
+        return
+
+    def createTFFile(self, group: int = 2):
+        tf.print("Protocal files can not be found. Creating protocal files.")
+        # Get breed directories
+        breedDir = listdir(self.mImPath)
+        # Define generator for batching the breed directories (as we are going to create multiple proto files as we
+        # cannot store the entire dataset into memory)
+        def batch(iter, n=1):
+            l = len(iter)
+            for ndx in range(0, l, n):
+                yield iter[ndx:min(ndx+n, l)]
+        # Helper function from https://www.tensorflow.org/tutorials/load_data/tfrecord#reading_a_tfrecord_file
+        def _bytes_feature(value):
+            """Returns a bytes_list from a string / byte."""
+            if isinstance(value, type(tf.constant(0))):
+                value = value.numpy()  # BytesList won't unpack a string from an EagerTensor.
+            return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+        def _int64_feature(value):
+            """Returns an int64_list from a bool / enum / int / uint."""
+            return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+        # Create helper function to serialize data
+        def serialize(image, imageShape):
+            feature = {
+                'image': _bytes_feature(image),
+                'height': _int64_feature(imageShape[0]),
+                'width': _int64_feature(imageShape[1]),
+                'channels': _int64_feature(imageShape[2])
+            }
+            example = tf.train.Example(features=tf.train.Features(feature=feature))
+            return example.SerializeToString()
+
+        with tf.io.TFRecordWriter(abspath(self.mTFPath / "data.tfrecords")) as writer:
+            # Go through each breed folder
+            for breedFolder in tqdm(listdir(self.mAnnPath)):
+                # Go through each file in the breed folder
+                for file in listdir(self.mAnnPath / breedFolder):
+                    # Create path to file
+                    filePath = Path(breedFolder, file)
+                    # Read the image and the annotations tree
+                    img = self.readImage((self.mImPath / (filePath.with_suffix(".jpg"))))
+                    root = ET.parse(self.mAnnPath / filePath).getroot()
+                    # Get properties for the image
+                    size = root.find('size')
+                    height = int(size.find('height').text)
+                    width = int(size.find('width').text)
+                    channels = int(size.find('depth').text)
+                    objects = root.findall('object')
+                    # Pictures may have multiple dogs in them
+                    # So we iterate through each dog in the picture and crop the image to the specific dog
+                    for object in objects:
+                        # Get the margins for the dog
+                        bndBox = object.find('bndbox')
+                        xMin = int(bndBox.find('xmin').text)
+                        xMax = int(bndBox.find('xmax').text)
+                        yMin = int(bndBox.find('ymin').text)
+                        yMax = int(bndBox.find('ymax').text)
+                        # Make the margins slightly bigger
+                        xMin = max(0, xMin - 4)
+                        xMax = min(width, xMax + 4)
+                        yMin = max(0, yMin - 4)
+                        yMax = min(height, yMax + 4)
+                        # Crop the image to focus on the specific dog
+                        # @todo: test whether adding a wider margin helps the discriminator more
+                        imgCropped = img[yMin:yMax, xMin:xMax, :]
+                        imgByte = tf.io.serialize_tensor(imgCropped)
+                        example = serialize(imgByte, (yMax-yMin, xMax-xMin, channels))
+                        writer.write(example)
+
         return
 
     def readImage(self, path) -> np.ndarray:
@@ -30,6 +107,8 @@ class InputPipe():
         img = img.convert('RGB')
         # Return image as a numpy array
         return np.array(img)
+
+
 
     def getImgCount(self) -> int:
         counter = 0
@@ -141,6 +220,7 @@ class InputPipe():
     mImageHeight = None
     mImageChannels = None
     mBatchSize = None
+    mTFPath = Path("Datasets\\images")
     mAnnPath = Path("Datasets\\annotations\\Annotation")
     mImPath = Path("Datasets\\images\\Images")
     mImages = None
@@ -151,12 +231,10 @@ class InputPipe():
 
 if __name__ == "__main__":
     io = InputPipe()
+
+
     # imga = io.readImage("Datasets\\images\\Images\\n02085620-Chihuahua\\n02085620_199.jpg")
     # io.loadAllImages()
-    for x in io.getNextImageChunk():
-        ...
-        # print(x)
-        # exit(-1)
     # io.loadAllImages(sampleSize=100)
     #
     # for batch in io.mImages.take(1).as_numpy_iterator():
