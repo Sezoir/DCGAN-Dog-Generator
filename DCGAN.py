@@ -19,7 +19,7 @@ class DCGAN:
     def __init__(self, sampleSize=None):
         self.mInputPipe = InputPipe(batchSize=self.mBatchSize, imageWidth=self.mImageShape[0],
                                     imageHeight=self.mImageShape[1], imageChannels=self.mImageShape[2])
-        # self.mInputPipe.loadAllImages(sampleSize=sampleSize)
+        self.mInputPipe.loadAllImages(sampleSize=sampleSize)
         initWeights = ks.initializers.TruncatedNormal(stddev=0.02, mean=0)
         self.mDiscriminator = Discriminator(batchSize=self.mBatchSize,
                                             imShape=self.mImageShape, initWeights=initWeights)
@@ -59,14 +59,14 @@ class DCGAN:
         return (genLoss, discLoss)
 
     # Trains both models for x epochs
-    def train(self, epochs: int):
+    def train(self, epochs: int, group = 4):
         # Initialise loss arrays
         self.mDiscLoss = np.zeros(epochs)
         self.mGenLoss = np.zeros(epochs)
         # Loop through each epoch
 
         for epoch in range(epochs):
-            for chunk in self.mInputPipe.getNextImageChunk():
+            for chunk in self.mInputPipe.getNextImageChunk(group):
                 with tqdm(total=tf.data.experimental.cardinality(chunk).numpy()) as pbar:
                     for imageBatch in chunk:
                         (genLoss, discLoss) = self.trainStep(imageBatch)
@@ -114,17 +114,17 @@ class DCGAN:
     mDiscriminator = None
     mGenerator = None
     mSaveDir = Path("TrainingCheckpoints/")
-    mBatchSize = 64
+    mBatchSize = 32
     mNoiseDim = 100 # Size input to generator
     mGenLoss = None
     mDiscLoss = None
-    mImageShape = (64, 64, 3)
+    mImageShape = (256, 256, 3)
     mLossFunc = "gan"
 
 if __name__ == "__main__":
-    gan = DCGAN()
+    gan = DCGAN(2000)
     gan.loadModels(loadCheckpoint="initial")
-    gan.train(10)
+    gan.train(20, 10)
     gan.plotLoss()
     gan.genPic(sample=15)
     # print(gan.mDiscriminator.mModel.weights)

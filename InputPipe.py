@@ -101,7 +101,7 @@ class InputPipe():
                     # imgCropped = tf.image.resize_with_pad(imgCropped, self.mImageWidth, self.mImageHeight,
                     #                                       method=interpolation, antialias=True)
                     imgCropped = tf.image.resize(imgCropped, (self.mImageWidth, self.mImageHeight),
-                                                          method=interpolation, antialias=True)
+                                                          method=interpolation, antialias=True).numpy()
 
 
                     # Store image
@@ -110,96 +110,28 @@ class InputPipe():
                     # Increase index
                     index += 1
 
+                    # For set sample size
                     if index == buffer-1:
-                        # Change type from float64 to float32 to save memory
-                        self.mImages = tf.cast(self.mImages, dtype=tf.float32)
-                        # Create dataset
-                        self.mImages = tf.data.Dataset.from_tensor_slices(self.mImages).shuffle(64).batch(
-                            self.mBatchSize, drop_remainder=True)
+                        np.random.shuffle(self.mImages)
                         return
         return
 
     # @todo: Move areas of function to its own function
     # @todo: Scale group depending on sampleSize
-    def getNextImageChunk(self, sampleSize=None, group=2):
-        # Get count of images
-        if sampleSize == None:
-            sampleSize = self.getImgCount()
-
-        fileFolder = {folder: [file for file in listdir(self.mAnnPath / folder)] for folder in listdir(self.mAnnPath)}
-        groupSize = {}
-        # Determine sample size per folder
-        for breedFolder in listdir(self.mAnnPath):
-            groupSize[breedFolder] = len(fileFolder[breedFolder]) // group
-
+    def getNextImageChunk(self, group=2):
+        size = len(self.mImages)
+        chunkSize = size // group
         # Iterate through each group
         for chunk in range(group):
-            # Initialise empty numpy array
-            images = np.zeros((sampleSize//group, self.mImageWidth, self.mImageHeight, self.mImageChannels))
-
-            for breedFolder in listdir(self.mAnnPath):
-                # Get the files to operate on. If we are on the last chunk, use all the remaining files
-                if chunk == group-1:
-                    files = fileFolder[breedFolder]
-                else:
-                    # Randomly choose files from folder
-                    files = np.random.choice(fileFolder[breedFolder], groupSize[breedFolder], replace=False)
-                    # Remove any files we have processed
-                    fileFolder[breedFolder] = [x for x in fileFolder[breedFolder] if x not in files]
-                # Iterate through each file
-                for file in files:
-                    # Create path to file
-                    path = Path(breedFolder, file)
-                    # Read the image and annotations tree
-                    img = self.readImage(self.mImPath / path.with_suffix(".jpg"))
-                    root = ET.parse(self.mAnnPath / path).getroot()
-                    # Get properties for the image
-                    size = root.find('size')
-                    height = int(size.find('height').text)
-                    width = int(size.find('width').text)
-                    # channels = size.find('depth')
-                    objects = root.findall('object')
-                    # Pictures may have multiple dogs in them
-                    # So we iterate through each dog in the picture and crop the image to the specific dog
-                    index = 0
-                    for object in objects:
-                        # Get the margins for the dog
-                        bndBox = object.find('bndbox')
-                        xMin = int(bndBox.find('xmin').text)
-                        xMax = int(bndBox.find('xmax').text)
-                        yMin = int(bndBox.find('ymin').text)
-                        yMax = int(bndBox.find('ymax').text)
-                        # Make the margins slightly bigger
-                        xMin = max(0, xMin - 4)
-                        xMax = min(width, xMax + 4)
-                        yMin = max(0, yMin - 4)
-                        yMax = min(height, yMax + 4)
-                        # Crop the image to focus on the specific dog
-                        # @todo: test whether adding a wider margin helps the discriminator more
-                        imgCropped = img[yMin:yMax, xMin:xMax, :]
-
-                        # Standardisation the images
-                        imgCropped = (imgCropped / 127.5) - 1
-
-                        # Get the interpolation method for scaling the picture
-                        if xMax - xMin > width:
-                            interpolation = tf.image.ResizeMethod.AREA  # Shrink
-                        else:
-                            interpolation = tf.image.ResizeMethod.BICUBIC  # Stretch
-
-                        # Resize image with pad to reserve aspect ratio
-                        # imgCropped = tf.image.resize_with_pad(imgCropped, self.mImageWidth, self.mImageHeight,
-                        #                                       method=interpolation, antialias=True)
-                        imgCropped = tf.image.resize(imgCropped, (self.mImageWidth, self.mImageHeight),
-                                                     method=interpolation, antialias=True)
-
-                        # Store image
-                        images[index] = imgCropped
-
+            # Get chunk of images
+            if chunk == group:
+                images = self.mImages[chunk*chunkSize:]
+            else:
+                images = self.mImages[chunk*chunkSize:(chunk+1)*chunkSize]
             # Change type from float64 to float32 to save memory
             images = tf.cast(images, dtype=tf.float32)
             # Create dataset
-            images = tf.data.Dataset.from_tensor_slices(images).shuffle(sampleSize//group).batch(
+            images = tf.data.Dataset.from_tensor_slices(images).shuffle(chunkSize//2).batch(
                 self.mBatchSize, drop_remainder=True)
             yield images
 
