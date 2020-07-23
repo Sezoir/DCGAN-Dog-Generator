@@ -20,12 +20,39 @@ class InputPipe():
         self.mImageHeight = imageHeight
         self.mImageChannels = imageChannels
         self.mShape = (imageHeight, imageWidth, imageChannels)
-        if ~exists(self.mTFPath / "data.tfrecords"):
+        if not (self.mTFPath / "data.tfrecords").exists():
             self.createTFFile()
+        self.loadDataset()
         return
 
-    def loadDataset(self):
+    def formatImage(self, image):
+        # Cast int8 to float
+        image = tf.cast(image, dtype=tf.float32)
+        # Standardisation the image
+        image = (image / 127.5) - 1
+        # Resize the image
+        image = tf.image.resize(image, (self.mImageWidth, self.mImageHeight), antialias=True)
+        return image
 
+    def loadDataset(self):
+        def readTFRecord(serialized):
+            featureDescription = {
+                'image': tf.io.FixedLenFeature((), tf.string),
+                'height': tf.io.FixedLenFeature((), tf.int64),
+                'width': tf.io.FixedLenFeature((), tf.int64),
+                'channels': tf.io.FixedLenFeature((), tf.int64)
+            }
+            example = tf.io.parse_single_example(serialized, featureDescription)
+            image = tf.io.parse_tensor(example['image'], out_type=tf.uint8)
+            imageShape = (example['height'], example['width'], example['channels'])
+            image = tf.reshape(image, imageShape)
+            return image
+        tfDataset = tf.data.TFRecordDataset(abspath(self.mTFPath / "data.tfrecords"))
+        dataset = tfDataset.map(readTFRecord)
+        dataset = dataset.map(self.formatImage)
+        dataset = dataset.shuffle(1000).batch(self.mBatchSize, drop_remainder=True).prefetch(3)
+
+        self.mImages = dataset
         return
 
     def createTFFile(self, group: int = 2):

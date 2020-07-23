@@ -19,7 +19,6 @@ class DCGAN:
     def __init__(self, sampleSize=None):
         self.mInputPipe = InputPipe(batchSize=self.mBatchSize, imageWidth=self.mImageShape[0],
                                     imageHeight=self.mImageShape[1], imageChannels=self.mImageShape[2])
-        self.mInputPipe.loadAllImages(sampleSize=sampleSize)
         initWeights = ks.initializers.TruncatedNormal(stddev=0.02, mean=0)
         self.mDiscriminator = Discriminator(batchSize=self.mBatchSize,
                                             imShape=self.mImageShape, initWeights=initWeights)
@@ -59,23 +58,22 @@ class DCGAN:
         return (genLoss, discLoss)
 
     # Trains both models for x epochs
-    def train(self, epochs: int, group = 4):
+    def train(self, epochs: int):
         # Initialise loss arrays
         self.mDiscLoss = np.zeros(epochs)
         self.mGenLoss = np.zeros(epochs)
         # Loop through each epoch
 
         for epoch in range(epochs):
-            for chunk in self.mInputPipe.getNextImageChunk(group):
-                with tqdm(total=tf.data.experimental.cardinality(chunk).numpy()) as pbar:
-                    for imageBatch in chunk:
-                        (genLoss, discLoss) = self.trainStep(imageBatch)
-                        pbar.set_description("Progress for epoch {%s}" % epoch)
-                        pbar.set_postfix_str("Generator loss: {:.5f}, Discriminator loss: {:.5f}".format(genLoss, discLoss))
-                        pbar.update(1)
-                        self.mDiscLoss[epoch] = discLoss
-                        self.mGenLoss[epoch] = genLoss
-                    pbar.close()
+            with tqdm(total=self.mInputPipe.getImgCount()//self.mBatchSize) as pbar:
+                for imageBatch in self.mInputPipe.mImages:
+                    (genLoss, discLoss) = self.trainStep(imageBatch)
+                    pbar.set_description("Progress for epoch {%s}" % epoch)
+                    pbar.set_postfix_str("Generator loss: {:.5f}, Discriminator loss: {:.5f}".format(genLoss, discLoss))
+                    pbar.update(1)
+                    self.mDiscLoss[epoch] = discLoss
+                    self.mGenLoss[epoch] = genLoss
+                pbar.close()
 
             if (epoch+1) % 15 == 0:
                 self.save()
@@ -124,7 +122,7 @@ class DCGAN:
 if __name__ == "__main__":
     gan = DCGAN(2000)
     gan.loadModels(loadCheckpoint="initial")
-    gan.train(20, 10)
+    gan.train(20)
     gan.plotLoss()
     gan.genPic(sample=15)
     # print(gan.mDiscriminator.mModel.weights)
