@@ -38,18 +38,30 @@ class Discriminator:
         checkpoint.save(dire / self.mSavePre)
         return
 
-    def createModel(self):
+    def createModel(self, spectralNorm: bool = False):
         model = ks.Sequential()
-        model.add(lr.Conv2D(64, (5, 5), strides=2, padding='same',
-                            input_shape=[self.mImHeight, self.mImWidth, self.mImChannels],
-                            kernel_initializer=self.mInitWeights))
+        if spectralNorm:
+            ...
+        else:
+            model.add(lr.Conv2D(64, (5, 5), strides=2, padding='same',
+                                input_shape=[self.mImHeight, self.mImWidth, self.mImChannels],
+                                kernel_initializer=self.mInitWeights))
+            model.add(lr.BatchNormalization())
+            model.add(lr.LeakyReLU())
+            model = self.convReLU(model, output=64, shape=(4, 4), stride=2)
+            model = self.convReLU(model, output=128, shape=(4, 4), stride=2)
+            model = self.convReLU(model, output=256, shape=(4, 4), stride=2)
+            model.add(lr.Flatten())
+            model.add(lr.Dense(1, activation='sigmoid'))
+        return model
+
+    def sConvReLU(self, model: ks.Sequential, output: int, shape: (int, int),
+                 stride: int, padding: str = "same", useBias: bool = False,
+                 slope: float = 0.2) -> ks.Sequential:
+        # model.add(lr.ConvSN2D(output, shape, strides=(stride, stride), padding=padding, use_bias=useBias,
+        #                     kernel_initializer=self.mInitWeights))
         model.add(lr.BatchNormalization())
-        model.add(lr.LeakyReLU())
-        model = self.convReLU(model, output=64, shape=(4, 4), stride=2)
-        model = self.convReLU(model, output=128, shape=(4, 4), stride=2)
-        model = self.convReLU(model, output=256, shape=(4, 4), stride=2)
-        model.add(lr.Flatten())
-        model.add(lr.Dense(1, activation='sigmoid'))
+        model.add(lr.LeakyReLU(alpha=slope))
         return model
 
     def convReLU(self, model: ks.Sequential, output: int, shape: (int, int),
@@ -66,7 +78,18 @@ class Discriminator:
         return
 
     @tf.function
-    def loss(self, realOutput: tf.Tensor, fakeOutput: tf.Tensor, lossFunc: str = "gan", labelSmoothing: bool = True):
+    def loss(self, realOutput: tf.Tensor, fakeOutput: tf.Tensor,
+             lossFunc: str = "gan", labelSmoothing: bool = True,
+             noise: bool = True):
+        def addGaussianNoise(image):
+            noise = tf.random.normal(shape=realOutput.shape, mean=0, stddev=50/255, dtype=tf.float32)
+            image = image+noise
+            image = tf.clip_by_value(image, 0.0, 1.0)
+            return image
+        # Add noise to images
+        if noise:
+            tf.map_fn(addGaussianNoise, realOutput, parallel_iterations=10)
+            tf.map_fn(addGaussianNoise, fakeOutput, parallel_iterations=10)
         # Create labels for real and fake images
         realLabels = tf.ones_like(realOutput)
         fakeLabels = tf.zeros_like(fakeOutput)
