@@ -50,21 +50,15 @@ class InputPipe():
         tfDataset = tf.data.TFRecordDataset(abspath(self.mTFPath / "data.tfrecords"))
         dataset = tfDataset.map(readTFRecord)
         dataset = dataset.map(self.formatImage)
-        dataset = dataset.shuffle(1000).batch(self.mBatchSize, drop_remainder=True).prefetch(3)
+        dataset = dataset.shuffle(1000)\
+                 .batch(self.mBatchSize, drop_remainder=True)\
+                 .prefetch(tf.data.experimental.AUTOTUNE)
 
         self.mImages = dataset
         return
 
-    def createTFFile(self, group: int = 2):
+    def createTFFile(self):
         tf.print("Protocal files can not be found. Creating protocal files.")
-        # Get breed directories
-        breedDir = listdir(self.mImPath)
-        # Define generator for batching the breed directories (as we are going to create multiple proto files as we
-        # cannot store the entire dataset into memory)
-        def batch(iter, n=1):
-            l = len(iter)
-            for ndx in range(0, l, n):
-                yield iter[ndx:min(ndx+n, l)]
         # Helper function from https://www.tensorflow.org/tutorials/load_data/tfrecord#reading_a_tfrecord_file
         def _bytes_feature(value):
             """Returns a bytes_list from a string / byte."""
@@ -259,7 +253,10 @@ class InputPipe():
 if __name__ == "__main__":
     io = InputPipe()
 
-
+    for batch in io.mImages.take(1):
+        for image in batch:
+            plt.imshow(image),
+            plt.show()
     # imga = io.readImage("Datasets\\images\\Images\\n02085620-Chihuahua\\n02085620_199.jpg")
     # io.loadAllImages()
     # io.loadAllImages(sampleSize=100)
