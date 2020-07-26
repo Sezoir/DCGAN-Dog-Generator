@@ -62,7 +62,7 @@ class Generator:
         model.add(lr.LeakyReLU(alpha=slope))
         return model
 
-    def setOptimizer(self, learning=0.0002, b1=0.5):
+    def setOptimizer(self, learning=0.0001, b1=0.5):
         self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
         return
 

@@ -112,19 +112,19 @@ class DCGAN:
     mDiscriminator = None
     mGenerator = None
     mSaveDir = Path("TrainingCheckpoints/")
-    mBatchSize = 32
+    mBatchSize = 64
     mNoiseDim = 100 # Size input to generator
     mGenLoss = None
     mDiscLoss = None
-    mImageShape = (256, 256, 3)
+    mImageShape = (128, 128, 3)
     mLossFunc = "gan"
 
 if __name__ == "__main__":
-    gan = DCGAN(2000)
+    gan = DCGAN()
     gan.loadModels(loadCheckpoint="initial")
-    gan.train(20)
+    gan.train(40)
     gan.plotLoss()
-    gan.genPic(sample=15)
+    gan.genPic(sample=16)
     # print(gan.mDiscriminator.mModel.weights)
     gan.save()
     # gan.loadModels(loadCheckpoint="latest")
