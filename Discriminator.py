@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from Layers import Conv2DSN, DenseSN
+
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as ks
@@ -38,10 +40,19 @@ class Discriminator:
         checkpoint.save(dire / self.mSavePre)
         return
 
-    def createModel(self, spectralNorm: bool = False):
+    def createModel(self, spectralNorm: bool = True):
         model = ks.Sequential()
         if spectralNorm:
-            ...
+            model.add(Conv2DSN.Conv2DSN(64, (5, 5), strides=2, padding='same',
+                               input_shape=[self.mImHeight, self.mImWidth, self.mImChannels],
+                               kernel_initializer=self.mInitWeights))
+            model.add(lr.BatchNormalization())
+            model.add(lr.LeakyReLU())
+            model = self.sConvReLU(model, output=64, shape=(4, 4), stride=2)
+            model = self.sConvReLU(model, output=128, shape=(4, 4), stride=2)
+            model = self.sConvReLU(model, output=256, shape=(4, 4), stride=2)
+            model.add(lr.Flatten())
+            model.add(DenseSN.DenseSN(1, activation='sigmoid'))
         else:
             model.add(lr.Conv2D(64, (5, 5), strides=2, padding='same',
                                 input_shape=[self.mImHeight, self.mImWidth, self.mImChannels],
@@ -58,8 +69,8 @@ class Discriminator:
     def sConvReLU(self, model: ks.Sequential, output: int, shape: (int, int),
                  stride: int, padding: str = "same", useBias: bool = False,
                  slope: float = 0.2) -> ks.Sequential:
-        # model.add(lr.ConvSN2D(output, shape, strides=(stride, stride), padding=padding, use_bias=useBias,
-        #                     kernel_initializer=self.mInitWeights))
+        model.add(Conv2DSN.Conv2DSN(output, shape, strides=(stride, stride), padding=padding, use_bias=useBias,
+                            kernel_initializer=self.mInitWeights))
         model.add(lr.BatchNormalization())
         model.add(lr.LeakyReLU(alpha=slope))
         return model
