@@ -41,15 +41,18 @@ class Generator:
 
     def createModel(self):
         model = ks.Sequential()
-        model.add(lr.Dense((self.mImHeight//self.mScale)*(self.mImWidth//self.mScale)*512,
+        model.add(lr.Dense((self.mImHeight//self.mScale)*(self.mImWidth//self.mScale)*128,
                            use_bias=False, input_shape=(100,), kernel_initializer=self.mInitWeights))
         model.add(lr.BatchNormalization())
         model.add(lr.LeakyReLU())
-        model.add(lr.Reshape((self.mImHeight//self.mScale, self.mImWidth//self.mScale, 512)))
-        model = self.tconvReLU(model, output=256, shape=(5, 5), stride=1)
+        model.add(lr.Reshape((self.mImHeight//self.mScale, self.mImWidth//self.mScale, 128)))
+        model = self.tconvReLU(model, output=512, shape=(5, 5), stride=1)
+        model.add(lr.Dropout(0.5))
+        model = self.tconvReLU(model, output=256, shape=(5, 5), stride=2)
+        model.add(lr.Dropout(0.5))
         model = self.tconvReLU(model, output=128, shape=(5, 5), stride=2)
         model = self.tconvReLU(model, output=64, shape=(5, 5), stride=2)
-        model = self.tconvReLU(model, output=32, shape=(5, 5), stride=2)
+        model = self.tconvReLU(model, output=32, shape=(5, 5), stride=1)
         model.add(lr.Dense(3, activation="tanh", kernel_initializer=self.mInitWeights))
         return model
 
