@@ -65,18 +65,24 @@ class DCGAN:
         # Loop through each epoch
 
         for epoch in range(epochs):
+            ind = 1
             with tqdm(total=self.mInputPipe.getImgCount()//self.mBatchSize) as pbar:
                 for imageBatch in self.mInputPipe.mImages:
                     (genLoss, discLoss) = self.trainStep(imageBatch)
+                    self.mDiscLoss[epoch] += discLoss
+                    self.mGenLoss[epoch] += genLoss
                     pbar.set_description("Progress for epoch {%s}" % epoch)
-                    pbar.set_postfix_str("Generator loss: {:.5f}, Discriminator loss: {:.5f}".format(genLoss, discLoss))
+                    pbar.set_postfix_str("Generator loss: {:.5f}, Discriminator loss: {:.5f}".format(self.mGenLoss[epoch]/ind, self.mDiscLoss[epoch]/ind))
                     pbar.update(1)
-                    self.mDiscLoss[epoch] = discLoss
-                    self.mGenLoss[epoch] = genLoss
+                    ind += 1
                 pbar.close()
 
-            if (epoch+1) % 15 == 0:
+            if (epoch+1) % 5 == 0:
                 self.save()
+
+            if (epoch+1) % 20 == 0:
+                self.plotLoss()
+                self.genPic(sample=25)
         return
 
     def genPic(self, sample=1):
@@ -121,10 +127,10 @@ class DCGAN:
 
 if __name__ == "__main__":
     gan = DCGAN()
-    gan.loadModels(loadCheckpoint="initial")
-    gan.train(40)
+    gan.loadModels(loadCheckpoint="latest")
+    gan.train(100)
     gan.plotLoss()
-    gan.genPic(sample=16)
+    gan.genPic(sample=25)
     # print(gan.mDiscriminator.mModel.weights)
     gan.save()
     # gan.loadModels(loadCheckpoint="latest")
