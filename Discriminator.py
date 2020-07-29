@@ -46,8 +46,8 @@ class Discriminator:
             model.add(Conv2DSN.Conv2DSN(64, (5, 5), strides=2, padding='same',
                                input_shape=[self.mImHeight, self.mImWidth, self.mImChannels],
                                kernel_initializer=self.mInitWeights))
-            model.add(lr.BatchNormalization())
-            model.add(lr.LeakyReLU())
+            # model.add(lr.BatchNormalization())
+            model.add(lr.LeakyReLU(alpha=0.2))
             model = self.sConvReLU(model, output=64, shape=(4, 4), stride=2)
             model = self.sConvReLU(model, output=128, shape=(4, 4), stride=2)
             model = self.sConvReLU(model, output=256, shape=(4, 4), stride=2)
@@ -58,7 +58,7 @@ class Discriminator:
                                 input_shape=[self.mImHeight, self.mImWidth, self.mImChannels],
                                 kernel_initializer=self.mInitWeights))
             model.add(lr.BatchNormalization())
-            model.add(lr.LeakyReLU())
+            model.add(lr.LeakyReLU(alpha=0.2))
             model = self.convReLU(model, output=64, shape=(4, 4), stride=2)
             model = self.convReLU(model, output=128, shape=(4, 4), stride=2)
             model = self.convReLU(model, output=256, shape=(4, 4), stride=2)
