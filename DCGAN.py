@@ -41,19 +41,20 @@ class DCGAN:
     def trainStep(self, images):
         noise = tf.random.normal([self.mBatchSize, self.mNoiseDim])
 
-        with tf.GradientTape() as genTape, tf.GradientTape() as discTape:
-            generatedImages = self.mGenerator.mModel(noise, training=True)
+        for x in range(3):
+            with tf.GradientTape() as genTape, tf.GradientTape() as discTape:
+                generatedImages = self.mGenerator.mModel(noise, training=True)
 
-            realOutput = self.mDiscriminator.mModel(images, training=True)
-            fakeOutput = self.mDiscriminator.mModel(generatedImages, training=True)
+                realOutput = self.mDiscriminator.mModel(images, training=True)
+                fakeOutput = self.mDiscriminator.mModel(generatedImages, training=True)
 
-            genLoss = self.mGenerator.loss(realOutput, fakeOutput, lossFunc=self.mLossFunc)
-            discLoss = self.mDiscriminator.loss(realOutput, fakeOutput, lossFunc=self.mLossFunc)
+                genLoss = self.mGenerator.loss(realOutput, fakeOutput, lossFunc=self.mLossFunc)
+                discLoss = self.mDiscriminator.loss(realOutput, fakeOutput, lossFunc=self.mLossFunc)
 
-        gradDisc = discTape.gradient(discLoss, self.mDiscriminator.mModel.trainable_variables)
+            gradDisc = discTape.gradient(discLoss, self.mDiscriminator.mModel.trainable_variables)
+            self.mDiscriminator.mOptimizer.apply_gradients(
+                zip(gradDisc, self.mDiscriminator.mModel.trainable_variables))
         gradGen = genTape.gradient(genLoss, self.mGenerator.mModel.trainable_variables)
-
-        self.mDiscriminator.mOptimizer.apply_gradients(zip(gradDisc, self.mDiscriminator.mModel.trainable_variables))
         self.mGenerator.mOptimizer.apply_gradients(zip(gradGen, self.mGenerator.mModel.trainable_variables))
         return (genLoss, discLoss)
 
@@ -80,9 +81,9 @@ class DCGAN:
             if (epoch+1) % 5 == 0:
                 self.save()
 
-            if (epoch+1) % 20 == 0:
+            if (epoch+1) % 10 == 0:
                 self.plotLoss()
-                self.genPic(sample=25)
+                self.genPic(sample=24)
         return
 
     def genPic(self, sample=1):
@@ -107,8 +108,8 @@ class DCGAN:
     def plotLoss(self):
         df = pd.DataFrame({
             "Epoch": np.arange(len(self.mDiscLoss)),
-            "discLoss": self.mDiscLoss,
-            "genLoss": self.mGenLoss
+            "discLoss": self.mDiscLoss/len(self.mDiscLoss),
+            "genLoss": self.mGenLoss/len(self.mDiscLoss)
         })
         sns.lineplot(x='Epoch', y='value', hue='variable', data=pd.melt(df, ['Epoch']))
         plt.show()
@@ -128,7 +129,7 @@ class DCGAN:
 if __name__ == "__main__":
     gan = DCGAN()
     gan.loadModels(loadCheckpoint="latest")
-    gan.train(100)
+    gan.train(40)
     gan.plotLoss()
     gan.genPic(sample=25)
     # print(gan.mDiscriminator.mModel.weights)
