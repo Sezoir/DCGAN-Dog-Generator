@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from Layers import Conv2DTransposeSN, DenseSN
+
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as ks
@@ -39,33 +41,57 @@ class Generator:
         checkpoint.save(dire / self.mSavePre)
         return
 
-    def createModel(self):
+    def createModel(self, spectralNorm: bool = True):
         model = ks.Sequential()
-        model.add(lr.Dense((self.mImHeight//self.mScale)*(self.mImWidth//self.mScale)*128,
-                           use_bias=False, input_shape=(100,), kernel_initializer=self.mInitWeights))
-        model.add(lr.BatchNormalization())
-        model.add(lr.LeakyReLU())
-        model.add(lr.Reshape((self.mImHeight//self.mScale, self.mImWidth//self.mScale, 128)))
-        model = self.tconvReLU(model, output=512, shape=(5, 5), stride=1)
-        model.add(lr.Dropout(0.5))
-        model = self.tconvReLU(model, output=256, shape=(5, 5), stride=2)
-        model.add(lr.Dropout(0.5))
-        model = self.tconvReLU(model, output=128, shape=(5, 5), stride=2)
-        model = self.tconvReLU(model, output=64, shape=(5, 5), stride=2)
-        model = self.tconvReLU(model, output=32, shape=(5, 5), stride=1)
-        model.add(lr.Dense(3, activation="tanh", kernel_initializer=self.mInitWeights))
+        if spectralNorm:
+            model.add(DenseSN.DenseSN((self.mImHeight//self.mScale)*(self.mImWidth//self.mScale)*128,
+                               use_bias=False, input_shape=(100,), kernel_initializer=self.mInitWeights))
+            model.add(lr.BatchNormalization())
+            model.add(lr.LeakyReLU())
+            model.add(lr.Reshape((self.mImHeight//self.mScale, self.mImWidth//self.mScale, 128)))
+            model = self.sTConvReLU(model, output=512, shape=(5, 5), stride=1)
+            model.add(lr.Dropout(0.5))
+            model = self.sTConvReLU(model, output=256, shape=(5, 5), stride=2)
+            model.add(lr.Dropout(0.5))
+            model = self.sTConvReLU(model, output=128, shape=(5, 5), stride=2)
+            model = self.sTConvReLU(model, output=64, shape=(5, 5), stride=2)
+            model = self.sTConvReLU(model, output=32, shape=(5, 5), stride=1)
+            model.add(DenseSN.DenseSN(3, activation="tanh", kernel_initializer=self.mInitWeights))
+        else:
+            model.add(lr.Dense((self.mImHeight//self.mScale)*(self.mImWidth//self.mScale)*128,
+                               use_bias=False, input_shape=(100,), kernel_initializer=self.mInitWeights))
+            model.add(lr.BatchNormalization())
+            model.add(lr.LeakyReLU())
+            model.add(lr.Reshape((self.mImHeight//self.mScale, self.mImWidth//self.mScale, 128)))
+            model = self.tConvReLU(model, output=512, shape=(5, 5), stride=1)
+            model.add(lr.Dropout(0.5))
+            model = self.tConvReLU(model, output=256, shape=(5, 5), stride=2)
+            model.add(lr.Dropout(0.5))
+            model = self.tConvReLU(model, output=128, shape=(5, 5), stride=2)
+            model = self.tConvReLU(model, output=64, shape=(5, 5), stride=2)
+            model = self.tConvReLU(model, output=32, shape=(5, 5), stride=1)
+            model.add(lr.Dense(3, activation="tanh", kernel_initializer=self.mInitWeights))
         return model
 
-    def tconvReLU(self, model: ks.Sequential, output: int, shape: (int, int),
+    def sTConvReLU(self, model: ks.Sequential, output: int, shape: (int, int),
                   stride: int, padding: str = "same", useBias: bool = False,
                   slope: float = 0.2) -> ks.Sequential:
-        model.add(lr.Conv2DTranspose(output, shape, strides=(stride, stride), padding=padding, use_bias=useBias,
+        model.add(Conv2DTransposeSN.Conv2DTransposeSN(output, shape, strides=(stride, stride), padding=padding, use_bias=useBias,
                                      kernel_initializer=self.mInitWeights))
         model.add(lr.BatchNormalization())
         model.add(lr.LeakyReLU(alpha=slope))
         return model
 
-    def setOptimizer(self, learning=0.0001, b1=0.5):
+    def tConvReLU(self, model: ks.Sequential, output: int, shape: (int, int),
+                  stride: int, padding: str = "same", useBias: bool = False,
+                  slope: float = 0.2) -> ks.Sequential:
+        model.add(lr.Conv2DTranspose(output, shape, strides=(stride, stride), padding=padding,
+                                     use_bias=useBias, kernel_initializer=self.mInitWeights))
+        model.add(lr.BatchNormalization())
+        model.add(lr.LeakyReLU(alpha=slope))
+        return model
+
+    def setOptimizer(self, learning=0.00005, b1=0.5):
         self.mOptimizer = ks.optimizers.Adam(learning_rate=learning, beta_1=b1)
         return
 
